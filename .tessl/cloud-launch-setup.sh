@@ -41,7 +41,7 @@ if timeout -k 10 120 npm install --prefix "$HOME/.local/share/carnival-capture" 
   --no-audit --no-fund --silent playwright-core@1.64.1; then
   echo "Installed playwright-core"
   # Playwright records video with its own copy of ffmpeg.
-  node "$HOME/.local/share/carnival-capture/node_modules/playwright-core/cli.js" install ffmpeg \
+  timeout -k 10 120 node "$HOME/.local/share/carnival-capture/node_modules/playwright-core/cli.js" install ffmpeg \
     || echo "WARNING: could not install Playwright's ffmpeg, so this run has no videos"
 else
   echo "WARNING: could not install Playwright, so this run has no screenshots"

@@ -21,14 +21,26 @@
 // That saves <name>.webm, the full video, and <name>.gif, a smaller copy that plays
 // inside a pull request, because GitHub won't play a .webm from a link.
 //
-// Exit codes: 0 all good, 1 capture failed and no page logged an error, 2 a page
-// logged an error, which it prints, even if a later capture also failed. Playwright isn't a dependency of the carnival: the cloud setup script
+// Exit codes: 0 every capture finished and no page logged an error. 1 a capture
+// failed and no page logged an error. 2 every capture finished but a page logged
+// an error. 3 a capture failed and a page logged an error. It prints the errors.
+// A video whose GIF can't be made counts as a failed capture, though its .webm is
+// kept. Files an earlier run left for a capture are removed before it starts. Playwright isn't a dependency of the carnival: the cloud setup script
 // installs playwright-core outside the repository, and it drives the installed
 // Chrome. Set CAPTURE_TOOLS to use a copy somewhere else.
 
 import { spawnSync } from 'node:child_process';
-import { createReadStream, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
-import { readFileSync, statSync } from 'node:fs';
+import {
+  createReadStream,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  statSync,
+} from 'node:fs';
 import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
 import { homedir, tmpdir } from 'node:os';
@@ -50,15 +62,16 @@ const CONTENT_TYPES = {
 };
 
 const pageErrors = [];
+let gifFailed = false;
 
 // Every way out goes through here, so errors a page logged are never lost.
-function finish(fallbackCode) {
+function finish(captureCode) {
   if (pageErrors.length > 0) {
     console.error('Pages logged errors:');
     for (const error of pageErrors) console.error(`- ${error}`);
-    process.exit(2);
+    process.exit(captureCode === 0 ? 2 : 3);
   }
-  process.exit(fallbackCode);
+  process.exit(captureCode);
 }
 
 function fail(message) {
@@ -136,15 +149,27 @@ async function runStep(page, step) {
 function makeGif(webm, gif) {
   const filter =
     'fps=10,scale=640:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128[p];[b][p]paletteuse';
-  const result = spawnSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', webm, '-vf', filter, gif], {
-    stdio: 'inherit',
-    timeout: 60_000,
-  });
-  if (result.status !== 0) console.error(`No GIF for ${webm}: ffmpeg failed or is missing`);
-  else console.log(gif);
+  // Write beside the final name, so a failed conversion can't leave a partial GIF.
+  const partial = `${gif}.partial.gif`;
+  const result = spawnSync(
+    'ffmpeg',
+    ['-y', '-loglevel', 'error', '-i', webm, '-vf', filter, partial],
+    { stdio: 'inherit', timeout: 60_000 },
+  );
+  if (result.status === 0) {
+    renameSync(partial, gif);
+    console.log(gif);
+  } else {
+    rmSync(partial, { force: true });
+    gifFailed = true;
+    console.error(`No GIF for ${webm}: ffmpeg failed or is missing`);
+  }
 }
 
 async function capture(browser, origin, out, shot, work) {
+  for (const extension of ['png', 'webm', 'gif']) {
+    rmSync(join(out, `${shot.name}.${extension}`), { force: true });
+  }
   const context = await browser.newContext({
     viewport: VIEWPORT,
     ...(shot.video ? { recordVideo: { dir: join(work, 'video'), size: VIEWPORT } } : {}),
@@ -162,7 +187,6 @@ async function capture(browser, origin, out, shot, work) {
     await page.waitForTimeout(SETTLE_MS);
     for (const step of shot.steps ?? []) await runStep(page, step);
     const path = join(out, `${shot.name}.png`);
-    rmSync(path, { force: true });
     await page.screenshot({ path, clip: shot.clip, timeout: PAGE_TIMEOUT_MS });
     console.log(path);
   } finally {
@@ -215,7 +239,7 @@ async function main() {
   });
 
   for (const shot of shots) await capture(browser, origin, out, shot, work);
-  finish(0);
+  finish(gifFailed ? 1 : 0);
 }
 
 main().catch((error) => fail(`Capture failed: ${error.message}`));
