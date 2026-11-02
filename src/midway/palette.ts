@@ -54,4 +54,22 @@ export const palette = {
   pants: ['#2d3a6b', '#3b2a4f', '#5a4a3a'],
   bunting: [colors.stripeA, colors.accent, '#2b8ccc', colors.stripeB],
   balloons: [colors.stripeA, colors.accent, '#2b8ccc', colors.water, '#f59ac0'],
+
+  /** The disco theme, drawn over the sunset midway when it's on. */
+  disco: {
+    sky: '#3a1466',
+    skyHigh: '#0d0524',
+    /** Multiplied over the grass and scenery under the dance floor. */
+    groundWash: '#3d2a78',
+    /** Added after that wash, so the darkened grass reads purple and not brown. */
+    groundGlow: '#1c0a3a',
+    /** Multiplied over the finished scene, lighter so the booths still read. */
+    sceneWash: '#c9b5f2',
+    /** The first-person view's ground beyond the dance floor. */
+    ground: '#2a1d4f',
+    groundLight: '#33245f',
+    grout: '#1b1035',
+    /** Five or more, so neighbouring floor tiles never match. */
+    lights: ['#ff2fa0', '#21e6ff', '#ffd21f', '#a855ff', '#3dff8f'],
+  },
 } as const;

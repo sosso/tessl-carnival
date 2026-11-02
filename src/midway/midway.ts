@@ -1,3 +1,5 @@
+import { beatAt, floorLight, isDisco } from './disco';
+import { drawBeams, drawMirrorBall, drawStars, drawWash } from './disco-render';
 import { palette } from './palette';
 import { savedSpot, saveSpot } from './spot';
 import {
@@ -95,6 +97,9 @@ export function startMidway(canvas: HTMLCanvasElement, options: MidwayOptions): 
       name: '',
     })),
   ];
+  const danceTiles: Point[] = map.ground.flatMap((kind, i) =>
+    kind === 'path' ? [{ x: i % map.width, y: Math.floor(i / map.width) }] : [],
+  );
   const strolls = strollTiles(map);
   const visitors = createVisitors(map, 9, Math.random);
   const clouds: Cloud[] = Array.from({ length: 9 }, (_, i) => ({
@@ -258,25 +263,70 @@ export function startMidway(canvas: HTMLCanvasElement, options: MidwayOptions): 
     cameraReady = true;
   };
 
+  /** The paths as a dance floor, every tile lit by the beat. */
+  const drawDanceFloor = (lightsTime: number, visible: Box) => {
+    const beat = beatAt(lightsTime);
+    const grout = new Path2D();
+    const lit = palette.disco.lights.map(() => new Path2D());
+    const diamond = (path: Path2D, tile: Point, inset: number) => {
+      const near = 0 + inset;
+      const far = 1 - inset;
+      const corners = [
+        toScreen(tile.x + near, tile.y + near),
+        toScreen(tile.x + far, tile.y + near),
+        toScreen(tile.x + far, tile.y + far),
+        toScreen(tile.x + near, tile.y + far),
+      ];
+      path.moveTo(corners[0].x, corners[0].y);
+      for (const c of corners.slice(1)) path.lineTo(c.x, c.y);
+      path.closePath();
+    };
+    for (const tile of danceTiles) {
+      const p = toScreen(tile.x, tile.y);
+      if (
+        p.x < visible.left - 16 ||
+        p.x > visible.right + 16 ||
+        p.y < visible.top - 16 ||
+        p.y > visible.bottom
+      )
+        continue;
+      diamond(grout, tile, 0);
+      diamond(lit[floorLight(tile.x, tile.y, beat, lit.length)], tile, 0.05);
+    }
+    ctx.fillStyle = palette.disco.grout;
+    ctx.fill(grout);
+    lit.forEach((path, i) => {
+      ctx.fillStyle = palette.disco.lights[i];
+      ctx.fill(path);
+    });
+  };
+
   const draw = (t: number) => {
-    // The sky, and clouds drifting slowly behind the midway.
+    const disco = isDisco();
+    // Reduced motion freezes the lights instead of switching them off.
+    const lightsTime = calm ? 0 : t;
+
+    // The sky, and clouds drifting slowly behind the midway, or stars at the disco.
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const horizon = (HORIZON - camera.y) * zoom;
     const sky = ctx.createLinearGradient(0, horizon - 260 * zoom, 0, horizon);
-    sky.addColorStop(0, palette.skyHigh);
-    sky.addColorStop(1, palette.sky);
+    sky.addColorStop(0, disco ? palette.disco.skyHigh : palette.skyHigh);
+    sky.addColorStop(1, disco ? palette.disco.sky : palette.sky);
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, canvas.clientWidth, Math.max(0, horizon + 2));
+    if (disco && horizon > 0) drawStars(ctx, canvas.clientWidth, horizon, lightsTime);
 
     ctx.setTransform(dpr * zoom, 0, 0, dpr * zoom, 0, 0);
     const span = view.w + 200;
-    for (const cloud of clouds) {
-      const x =
-        ((((cloud.x * span - camera.x * 0.3 + (calm ? 0 : t * cloud.speed)) % span) + span) %
-          span) -
-        100;
-      const y = HORIZON - camera.y - 50 - cloud.y * 100;
-      drawCloud(ctx, x, y, cloud.size);
+    if (!disco) {
+      for (const cloud of clouds) {
+        const x =
+          ((((cloud.x * span - camera.x * 0.3 + (calm ? 0 : t * cloud.speed)) % span) + span) %
+            span) -
+          100;
+        const y = HORIZON - camera.y - 50 - cloud.y * 100;
+        drawCloud(ctx, x, y, cloud.size);
+      }
     }
 
     // Snap the camera to whole device pixels so the pre-drawn ground stays crisp.
@@ -306,6 +356,21 @@ export function startMidway(canvas: HTMLCanvasElement, options: MidwayOptions): 
           ground.canvas.height / ground.scale,
         );
       }
+    }
+    if (disco) {
+      const fieldWidth = visible.right - visible.left;
+      const fieldHeight = Math.max(0, visible.bottom - HORIZON);
+      drawWash(ctx, palette.disco.groundWash, visible.left, HORIZON, fieldWidth, fieldHeight);
+      drawWash(
+        ctx,
+        palette.disco.groundGlow,
+        visible.left,
+        HORIZON,
+        fieldWidth,
+        fieldHeight,
+        'lighter',
+      );
+      drawDanceFloor(lightsTime, visible);
     }
 
     if (destination && player.path.length > 0) {
@@ -375,6 +440,18 @@ export function startMidway(canvas: HTMLCanvasElement, options: MidwayOptions): 
     if (onScreen(archBounds(map))) faded(archBounds(map), Infinity, () => drawArch(ctx, map, t));
     drawBunting(ctx, map, t, visible);
     drawFloaters(ctx, floaters);
+
+    // The disco's lights hang over the whole scene, fixed to the screen.
+    if (disco) {
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+      const ball = { x: w / 2, y: 64 };
+      drawWash(ctx, palette.disco.sceneWash, 0, 0, w, h);
+      const reach = Math.hypot(w, h) * 1.1;
+      drawBeams(ctx, ball.x, ball.y, reach, reach * 0.09, lightsTime);
+      drawMirrorBall(ctx, ball.x, ball.y, 26, lightsTime);
+    }
 
     // The prompt over the booth in reach, at full resolution.
     if (inReach?.gameId) {

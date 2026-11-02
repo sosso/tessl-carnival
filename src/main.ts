@@ -1,6 +1,7 @@
 import './style.css';
 import { applyTheme, bestScore, type CarnivalGame } from './carnival';
 import { registry } from './games';
+import { isDisco, toggleDisco } from './midway/disco';
 import { startFirstPerson } from './midway/first-person-view';
 import { startMidway } from './midway/midway';
 import type { BoothSlot } from './midway/world';
@@ -27,11 +28,11 @@ function bestText(game: CarnivalGame): string {
 const HELP: Record<MidwayView, string> = {
   isometric: `
     <kbd>WASD</kbd> or <kbd>arrows</kbd> to walk, or click where you want to go.
-    <kbd>E</kbd> to play. <kbd>V</kbd> for first person.`,
+    <kbd>E</kbd> to play. <kbd>V</kbd> for first person. <kbd>B</kbd> for disco.`,
   'first-person': `
     <kbd>W</kbd> <kbd>S</kbd> to walk, <kbd>A</kbd> <kbd>D</kbd> to step sideways,
     <kbd>←</kbd> <kbd>→</kbd> to turn. Click to turn with the mouse, <kbd>Esc</kbd> to let go.
-    <kbd>E</kbd> to play. <kbd>V</kbd> for the map.`,
+    <kbd>E</kbd> to play. <kbd>V</kbd> for the map. <kbd>B</kbd> for disco.`,
 };
 
 function renderMidway(view: MidwayView) {
@@ -45,6 +46,7 @@ function renderMidway(view: MidwayView) {
       <a class="view-switch" href="${VIEW_ROUTES[other]}">${
         other === 'first-person' ? 'First person' : 'Map view'
       }</a>
+      <button class="disco-switch" type="button">Disco</button>
       <p class="midway-credit">
         Built with
         <a href="https://tessl.io/?utm_source=carnival&amp;utm_medium=midway-credit&amp;utm_campaign=tessl-carnival" target="_blank" rel="noopener">Tessl</a>
@@ -112,13 +114,26 @@ function renderMidway(view: MidwayView) {
   const midway =
     view === 'first-person' ? startFirstPerson(canvas, options) : startMidway(canvas, options);
 
+  const discoSwitch = app.querySelector<HTMLButtonElement>('.disco-switch')!;
+  const showDisco = () => discoSwitch.setAttribute('aria-pressed', String(isDisco()));
+  showDisco();
+  discoSwitch.addEventListener('click', () => {
+    toggleDisco();
+    showDisco();
+  });
+
   const onKeyDown = (event: KeyboardEvent) => {
-    if (event.code !== 'KeyV' || event.repeat || event.metaKey || event.ctrlKey || event.altKey)
-      return;
+    if (event.code !== 'KeyV' && event.code !== 'KeyB') return;
+    if (event.repeat || event.metaKey || event.ctrlKey || event.altKey) return;
     if (event.target instanceof HTMLElement && event.target.closest('input, textarea, select'))
       return;
     event.preventDefault();
-    location.hash = VIEW_ROUTES[other];
+    if (event.code === 'KeyV') {
+      location.hash = VIEW_ROUTES[other];
+    } else {
+      toggleDisco();
+      showDisco();
+    }
   };
   window.addEventListener('keydown', onKeyDown);
   stop = () => {

@@ -75,6 +75,9 @@ src/
     first-person.test.ts
     first-person-view.ts  the first-person view's input, drawing and animation loop
     spot.ts               where the player stands, kept when switching views or playing
+    disco.ts              the disco theme's on/off switch and light timing (plain functions)
+    disco.test.ts
+    disco-render.ts       the disco theme's stars, mirror ball, beams and colour wash
   carnival/               shared base every game uses
     registry.ts           the CarnivalGame shape and the registry
     scores.ts             recordScore, bestScore, topScores
@@ -109,6 +112,9 @@ that `src/games/index.ts` finds.
   switches views on the same spot, and a game's back link returns to the view
   the player left. Both views walk with `walk` in `world.ts`, so collision is
   the same.
+- Both views have a disco theme, off until B or the Disco button turns it on:
+  a night sky, a lit dance floor on the paths, and a mirror ball with sweeping
+  beams. It lasts for the page load, and reduced motion freezes the lights.
 
 ## House rules
 
