@@ -64,13 +64,17 @@ tessl-factory/skills/     sample skills for maintenance loops
 .tessl-code-review.yml    the lenses Tessl Code Review runs, and where each applies
 review-lenses/            the review lenses: the four defaults and the house rules
 src/
-  main.ts                 the router (#/play/<game-id>) and the midway's overlay
+  main.ts                 the router (#/, #/first-person, #/play/<game-id>) and the midway's overlay
   midway/                 the walkable midway map
     world.ts              layout, movement and pathfinding (plain functions)
     world.test.ts
     render.ts             drawing the scenery, booths and people
     palette.ts            the map's scenery colours, built on the theme
     midway.ts             input, camera and the animation loop
+    first-person.ts       the first-person view's rays, turning, moving and bob (plain functions)
+    first-person.test.ts
+    first-person-view.ts  the first-person view's input, drawing and animation loop
+    spot.ts               where the player stands, kept when switching views or playing
   carnival/               shared base every game uses
     registry.ts           the CarnivalGame shape and the registry
     scores.ts             recordScore, bestScore, topScores
@@ -97,6 +101,14 @@ that `src/games/index.ts` finds.
   the midway shows about a game, such as scores, usually go there.
 - `src/midway/` is the map itself: layout, movement and drawing. Keep it plain 2D
   canvas so it stays fast on slow laptops.
+- The midway has two views of the same map. The isometric view (`#/`) is the
+  default: WASD or the arrows walk, clicking walks to a spot, E plays. The
+  first-person view (`#/first-person`) is a raycaster: W and S walk, A and D
+  strafe, the left and right arrows turn, clicking captures the mouse for
+  turning and Esc lets it go, and E plays. V or the button in the corner
+  switches views on the same spot, and a game's back link returns to the view
+  the player left. Both views walk with `walk` in `world.ts`, so collision is
+  the same.
 
 ## House rules
 

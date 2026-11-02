@@ -99,6 +99,7 @@ body[data-view='midway'] main {
 .midway-help,
 .midway-guide,
 .midway-credit,
+.view-switch,
 .booth-card {
   position: absolute;
   margin: 0;
@@ -115,6 +116,20 @@ body[data-view='midway'] main {
   color: var(--color-muted);
   font-size: 14px;
   line-height: 1.7;
+}
+
+.view-switch {
+  right: 16px;
+  bottom: 16px;
+  padding: 8px 16px;
+  color: var(--color-accent);
+  font-weight: bold;
+  text-decoration: none;
+}
+
+.view-switch:hover,
+.view-switch:focus-visible {
+  background: var(--color-surface);
 }
 
 .midway-credit {

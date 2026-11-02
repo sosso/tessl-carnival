@@ -1,4 +1,5 @@
 import { palette } from './palette';
+import { savedSpot, saveSpot } from './spot';
 import {
   archBounds,
   BOOTH_SIGN_HEIGHT,
@@ -72,16 +73,13 @@ const DEVCON_URL =
   'https://tessl.io/devcon?utm_source=carnival&utm_medium=midway-billboard&utm_campaign=tessl-carnival';
 const MIN_QUALITY = 0.5;
 
-/** Where the player stood when they last left the midway, for this page load. */
-let returnTo: Point | undefined;
-
 export function startMidway(canvas: HTMLCanvasElement, options: MidwayOptions): MidwayControls {
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Canvas 2D is not available');
 
   const map = layoutMidway(options.games.map((g) => g.id));
   const names = new Map(options.games.map((g) => [g.id, g.name]));
-  const player = createWalker(returnTo ?? map.spawn);
+  const player = createWalker(savedSpot() ?? map.spawn);
   // Booths and scenery never move, so work out where each one sits once.
   const scenery: { depth: number; box: Box; booth?: BoothSlot; prop?: Prop; name: string }[] = [
     ...map.booths.map((booth) => ({
@@ -142,7 +140,7 @@ export function startMidway(canvas: HTMLCanvasElement, options: MidwayOptions): 
 
   const play = (booth: BoothSlot | undefined) => {
     if (!booth?.gameId) return;
-    returnTo = { x: player.x, y: player.y };
+    saveSpot(player);
     options.onPlay(booth.gameId);
   };
 
@@ -441,6 +439,7 @@ export function startMidway(canvas: HTMLCanvasElement, options: MidwayOptions): 
       if (booth) walkToBooth(booth);
     },
     stop() {
+      saveSpot(player);
       cancelAnimationFrame(frame);
       observer.disconnect();
       window.removeEventListener('keydown', onKeyDown);
