@@ -33,6 +33,7 @@ import {
   type BoothSlot,
   type Point,
   type PropKind,
+  type Rect,
 } from './world';
 
 /**
@@ -118,6 +119,9 @@ interface Sprite extends Point {
   w: number;
   h: number;
 }
+
+const inside = (tile: Point, rect: Rect) =>
+  tile.x >= rect.x && tile.x < rect.x + rect.w && tile.y >= rect.y && tile.y < rect.y + rect.h;
 
 function rgb(hex: string): [number, number, number] {
   const n = parseInt(hex.slice(1), 16);
@@ -369,6 +373,7 @@ export function startFirstPerson(
     const dir = facing(angle);
     const right = rightOf(angle);
     const occlusion: { distance: number; top: number }[][] = [];
+    const nearest: (RayHit | undefined)[] = [];
     for (let col = 0; col < columns; col++) {
       const s = (2 * (col + 0.5)) / columns - 1;
       const ray = { x: dir.x + right.x * PLANE * s, y: dir.y + right.y * PLANE * s };
@@ -380,6 +385,7 @@ export function startFirstPerson(
         tops.push({ distance: hits[k].distance, top: drawWall(hits[k], x, w, horizon, focal) });
       }
       occlusion.push(tops);
+      nearest.push(hits[0]);
     }
 
     // Visitors and small props face the camera, far to near, behind any wall in front.
@@ -427,23 +433,26 @@ export function startFirstPerson(
       ctx.restore();
     }
 
-    // The names of booths close enough to read.
+    // The names of booths close enough to read, over the part of the booth in view.
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     for (const booth of map.booths) {
       if (distanceToRect(player, booth) > NAME_DISTANCE) continue;
-      const dx = booth.x + booth.w / 2 - player.x;
-      const dy = booth.y + booth.h / 2 - player.y;
-      const depth = dx * dir.x + dy * dir.y;
-      if (depth < 0.3) continue;
-      const across = dx * right.x + dy * right.y;
-      const cx = W / 2 + (across / PLANE / depth) * (W / 2);
-      if (cx < 0 || cx > W) continue;
-      const top = horizon - (WALL_HEIGHT.booth - EYE_HEIGHT + 0.25) * (focal / depth);
-      const name = booth.gameId ? (names.get(booth.gameId) ?? booth.gameId) : 'Coming soon';
-      label(ctx, name, cx / dpr, Math.max(24, top / dpr));
-      if (booth === inReach && booth.gameId) {
-        label(ctx, 'Press E to play', cx / dpr, Math.max(24, top / dpr) + 40);
+      let sum = 0;
+      let count = 0;
+      let top = Infinity;
+      for (let col = 0; col < columns; col++) {
+        const hit = nearest[col];
+        if (!hit || !inside(hit.tile, booth)) continue;
+        sum += col;
+        count++;
+        top = Math.min(top, occlusion[col].at(-1)!.top);
       }
+      if (count === 0) continue;
+      const cx = ((sum / count + 0.5) * colW) / dpr;
+      const y = Math.max(32, top / dpr - 22);
+      const name = booth.gameId ? (names.get(booth.gameId) ?? booth.gameId) : 'Coming soon';
+      label(ctx, name, cx, y);
+      if (booth === inReach && booth.gameId) label(ctx, 'Press E to play', cx, y + 40);
     }
   };
 
