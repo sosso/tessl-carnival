@@ -26,9 +26,9 @@ fork, not to everyone who forks this repository.
 - TypeScript, Vite and plain HTML canvas. No UI framework.
 - Vitest for game logic. No browser tests in the test suite.
 - `scripts/screenshot.mjs` saves pictures of the midway and every game for pull
-  requests, plus any a plan asks for, and reports errors the pages log. It needs
-  Chrome and Playwright, which `.tessl/cloud-launch-setup.sh` installs on the
-  cloud machine, outside the repository.
+  requests, plus any pictures or videos a plan asks for, and reports errors the
+  pages log. It needs Chrome, ffmpeg and Playwright, which
+  `.tessl/cloud-launch-setup.sh` installs on the cloud machine.
 - Scores live in the browser (local storage) behind `src/carnival/scores.ts`.
 - No native dependencies. `npm ci` is the whole setup for the carnival itself:
   only that optional Chrome install uses `sudo`.

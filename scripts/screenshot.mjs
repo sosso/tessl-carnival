@@ -13,11 +13,16 @@
 //       "name": "after-walking",
 //       "steps": [{ "hold": "ArrowUp", "ms": 800 }, { "press": "KeyE" }, { "wait": 500 }]
 //     },
-//     { "name": "a-game", "route": "#/play/water-cannon", "steps": [{ "click": [640, 400] }] }
+//     { "name": "a-game", "route": "#/play/water-cannon", "steps": [{ "click": [640, 400] }] },
+//     { "name": "a-round", "video": true, "steps": [{ "click": [550, 400] }, { "wait": 3000 }] }
 //   ]
 //
-// Exit codes: 0 all good, 1 no usable pictures, 2 pictures saved but a page logged
-// an error. Playwright isn't a dependency of the carnival: the cloud setup script
+// A picture with "video": true is also recorded from the moment the page opens.
+// That saves <name>.webm, the full video, and <name>.gif, a smaller copy that plays
+// inside a pull request, because GitHub won't play a .webm from a link.
+//
+// Exit codes: 0 all good, 1 capture failed and no page logged an error, 2 a page
+// logged an error, which it prints, even if a later capture also failed. Playwright isn't a dependency of the carnival: the cloud setup script
 // installs playwright-core outside the repository, and it drives the installed
 // Chrome. Set CAPTURE_TOOLS to use a copy somewhere else.
 
@@ -44,9 +49,21 @@ const CONTENT_TYPES = {
   '.json': 'application/json',
 };
 
+const pageErrors = [];
+
+// Every way out goes through here, so errors a page logged are never lost.
+function finish(fallbackCode) {
+  if (pageErrors.length > 0) {
+    console.error('Pages logged errors:');
+    for (const error of pageErrors) console.error(`- ${error}`);
+    process.exit(2);
+  }
+  process.exit(fallbackCode);
+}
+
 function fail(message) {
   console.error(message);
-  process.exit(1);
+  finish(1);
 }
 
 function loadPlaywright() {
@@ -116,10 +133,26 @@ async function runStep(page, step) {
   if ('wait' in step) await page.waitForTimeout(step.wait);
 }
 
-async function capture(browser, origin, out, shot, pageErrors) {
-  const context = await browser.newContext({ viewport: VIEWPORT });
+function makeGif(webm, gif) {
+  const filter =
+    'fps=10,scale=640:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128[p];[b][p]paletteuse';
+  const result = spawnSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', webm, '-vf', filter, gif], {
+    stdio: 'inherit',
+    timeout: 60_000,
+  });
+  if (result.status !== 0) console.error(`No GIF for ${webm}: ffmpeg failed or is missing`);
+  else console.log(gif);
+}
+
+async function capture(browser, origin, out, shot, work) {
+  const context = await browser.newContext({
+    viewport: VIEWPORT,
+    ...(shot.video ? { recordVideo: { dir: join(work, 'video'), size: VIEWPORT } } : {}),
+  });
+  let video;
   try {
     const page = await context.newPage();
+    video = page.video();
     page.setDefaultTimeout(PAGE_TIMEOUT_MS);
     page.on('pageerror', (error) => pageErrors.push(`${shot.name}: ${error.message}`));
     page.on('console', (message) => {
@@ -139,6 +172,12 @@ async function capture(browser, origin, out, shot, pageErrors) {
       new Promise((done) => setTimeout(done, 5000)),
     ]);
   }
+  if (video) {
+    const webm = join(out, `${shot.name}.webm`);
+    await video.saveAs(webm);
+    console.log(webm);
+    makeGif(webm, join(out, `${shot.name}.gif`));
+  }
 }
 
 async function main() {
@@ -146,6 +185,9 @@ async function main() {
   if (!outArg) fail('Usage: node scripts/screenshot.mjs <output folder> [plan.json]');
   const out = resolve(outArg);
   const shots = [...defaultShots(), ...readPlan(planPath)];
+  const names = shots.map((shot) => shot.name);
+  const repeated = names.find((name, index) => names.indexOf(name) !== index);
+  if (repeated) fail(`Two pictures would both be saved as "${repeated}": rename one`);
   const { chromium } = loadPlaywright();
 
   // A hung browser must never hold up the run that called this. Exiting closes
@@ -172,15 +214,8 @@ async function main() {
     timeout: PAGE_TIMEOUT_MS,
   });
 
-  const pageErrors = [];
-  for (const shot of shots) await capture(browser, origin, out, shot, pageErrors);
-
-  if (pageErrors.length > 0) {
-    console.error('Pages logged errors:');
-    for (const error of pageErrors) console.error(`- ${error}`);
-    process.exit(2);
-  }
-  process.exit(0);
+  for (const shot of shots) await capture(browser, origin, out, shot, work);
+  finish(0);
 }
 
 main().catch((error) => fail(`Capture failed: ${error.message}`));

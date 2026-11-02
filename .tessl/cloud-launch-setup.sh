@@ -23,14 +23,15 @@ else
 fi
 
 # Without a proportional font, the page's text falls back to a monospace one.
-echo "Installing fonts for screenshots"
-if dpkg -s fonts-dejavu-core >/dev/null 2>&1; then
-  echo "Fonts are already installed"
+# ffmpeg turns recorded videos into GIFs that play inside a pull request.
+echo "Installing fonts and ffmpeg for screenshots"
+if dpkg -s fonts-dejavu-core ffmpeg >/dev/null 2>&1; then
+  echo "Fonts and ffmpeg are already installed"
 elif timeout -k 10 120 sudo apt-get update -q \
-  && timeout -k 10 120 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q fonts-dejavu-core; then
-  echo "Installed fonts"
+  && timeout -k 10 300 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends fonts-dejavu-core ffmpeg; then
+  echo "Installed fonts and ffmpeg"
 else
-  echo "WARNING: could not install fonts, so screenshots may use a different font"
+  echo "WARNING: could not install fonts and ffmpeg, so captures may look different and have no GIFs"
 fi
 
 # Playwright stays outside the repository, so it never becomes a dependency of
@@ -39,6 +40,9 @@ echo "Installing Playwright for screenshots"
 if timeout -k 10 120 npm install --prefix "$HOME/.local/share/carnival-capture" \
   --no-audit --no-fund --silent playwright-core@1.64.1; then
   echo "Installed playwright-core"
+  # Playwright records video with its own copy of ffmpeg.
+  node "$HOME/.local/share/carnival-capture/node_modules/playwright-core/cli.js" install ffmpeg \
+    || echo "WARNING: could not install Playwright's ffmpeg, so this run has no videos"
 else
   echo "WARNING: could not install Playwright, so this run has no screenshots"
 fi
