@@ -1,6 +1,7 @@
 import './style.css';
 import { applyTheme, bestScore, type CarnivalGame } from './carnival';
 import { registry } from './games';
+import { startFirstPerson } from './midway/first-person-view';
 import { startMidway } from './midway/midway';
 import type { BoothSlot } from './midway/world';
 import { carnivalLink, REPO_URL, shareLinks } from './share';
@@ -10,20 +11,40 @@ applyTheme();
 const app = document.querySelector<HTMLElement>('#app')!;
 let stop: (() => void) | undefined;
 
+type MidwayView = 'isometric' | 'first-person';
+const VIEW_ROUTES: Record<MidwayView, string> = {
+  isometric: '#/',
+  'first-person': '#/first-person',
+};
+/** The view the player last walked the midway in, so a game's back link returns there. */
+let lastView: MidwayView = 'isometric';
+
 function bestText(game: CarnivalGame): string {
   const best = bestScore(game.id);
   return best === undefined ? 'No scores yet' : `Best: ${best}`;
 }
 
-function renderMidway() {
+const HELP: Record<MidwayView, string> = {
+  isometric: `
+    <kbd>WASD</kbd> or <kbd>arrows</kbd> to walk, or click where you want to go.
+    <kbd>E</kbd> to play. <kbd>V</kbd> for first person.`,
+  'first-person': `
+    <kbd>W</kbd> <kbd>S</kbd> to walk, <kbd>A</kbd> <kbd>D</kbd> to step sideways,
+    <kbd>←</kbd> <kbd>→</kbd> to turn. Click to turn with the mouse, <kbd>Esc</kbd> to let go.
+    <kbd>E</kbd> to play. <kbd>V</kbd> for the map.`,
+};
+
+function renderMidway(view: MidwayView) {
+  lastView = view;
+  const other: MidwayView = view === 'isometric' ? 'first-person' : 'isometric';
   document.body.dataset.view = 'midway';
   app.innerHTML = `
-    <section class="midway">
+    <section class="midway" data-midway-view="${view}">
       <canvas class="midway-map" aria-label="The carnival midway. Walk up to a booth to play its game."></canvas>
-      <p class="midway-help">
-        <kbd>WASD</kbd> or <kbd>arrows</kbd> to walk, or click where you want to go.
-        <kbd>E</kbd> to play.
-      </p>
+      <p class="midway-help">${HELP[view]}</p>
+      <a class="view-switch" href="${VIEW_ROUTES[other]}">${
+        other === 'first-person' ? 'First person' : 'Map view'
+      }</a>
       <p class="midway-credit">
         Built with
         <a href="https://tessl.io/?utm_source=carnival&amp;utm_medium=midway-credit&amp;utm_campaign=tessl-carnival" target="_blank" rel="noopener">Tessl</a>
@@ -82,12 +103,28 @@ function renderMidway() {
     if (game) link.href = `#/play/${game.id}`;
   };
 
-  const midway = startMidway(app.querySelector('canvas')!, {
+  const options = {
     games: registry.all(),
-    onPlay: (gameId) => (location.hash = `#/play/${gameId}`),
+    onPlay: (gameId: string) => (location.hash = `#/play/${gameId}`),
     onReach: showBooth,
-  });
-  stop = midway.stop;
+  };
+  const canvas = app.querySelector('canvas')!;
+  const midway =
+    view === 'first-person' ? startFirstPerson(canvas, options) : startMidway(canvas, options);
+
+  const onKeyDown = (event: KeyboardEvent) => {
+    if (event.code !== 'KeyV' || event.repeat || event.metaKey || event.ctrlKey || event.altKey)
+      return;
+    if (event.target instanceof HTMLElement && event.target.closest('input, textarea, select'))
+      return;
+    event.preventDefault();
+    location.hash = VIEW_ROUTES[other];
+  };
+  window.addEventListener('keydown', onKeyDown);
+  stop = () => {
+    window.removeEventListener('keydown', onKeyDown);
+    midway.stop();
+  };
 }
 
 function renderGame(game: CarnivalGame) {
@@ -95,7 +132,7 @@ function renderGame(game: CarnivalGame) {
   app.innerHTML = `
     <section class="game">
       <div class="game-header">
-        <a href="#/">← Back to the midway</a>
+        <a href="${VIEW_ROUTES[lastView]}">← Back to the midway</a>
         <h1></h1>
       </div>
       <canvas></canvas>
@@ -111,7 +148,7 @@ function route() {
   const match = location.hash.match(/^#\/play\/([\w-]+)$/);
   const game = match ? registry.get(match[1]) : undefined;
   if (game) renderGame(game);
-  else renderMidway();
+  else renderMidway(location.hash === VIEW_ROUTES['first-person'] ? 'first-person' : 'isometric');
 }
 
 window.addEventListener('hashchange', route);
