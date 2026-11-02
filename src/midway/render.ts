@@ -1708,6 +1708,40 @@ export function drawCloud(ctx: Ctx, x: number, y: number, size: number) {
   ctx.fill();
 }
 
+/** A small bird silhouette with wings that rise and dip as it flies. */
+export function drawBird(ctx: Ctx, x: number, y: number, size: number, flap: number) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(size, size);
+  ctx.fillStyle = palette.ink;
+
+  // The wing tips move more than the body, keeping the bird readable at a distance.
+  ctx.beginPath();
+  ctx.moveTo(-1, 0);
+  ctx.quadraticCurveTo(-7, -4 - flap, -13, -3 - flap * 2);
+  ctx.quadraticCurveTo(-8, 1 - flap, -3, 2);
+  ctx.quadraticCurveTo(0, 3, 2, 1);
+  ctx.quadraticCurveTo(8, -3 - flap, 13, -2 - flap * 2);
+  ctx.quadraticCurveTo(9, 3 - flap, 4, 4);
+  ctx.quadraticCurveTo(1, 5, -2, 3);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.ellipse(1, 3, 4, 2.3, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(5, 2, 1.8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = palette.gold;
+  ctx.beginPath();
+  ctx.moveTo(6, 2);
+  ctx.lineTo(9, 3);
+  ctx.lineTo(6, 4);
+  ctx.fill();
+  ctx.restore();
+}
+
 export interface Floater {
   x: number;
   y: number;

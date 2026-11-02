@@ -4,6 +4,7 @@ import {
   BOOTH_SIGN_HEIGHT,
   boothBounds,
   drawArch,
+  drawBird,
   drawBooth,
   drawBunting,
   drawCloud,
@@ -105,6 +106,13 @@ export function startMidway(canvas: HTMLCanvasElement, options: MidwayOptions): 
     size: 0.7 + Math.random() * 0.6,
     speed: 3 + Math.random() * 4,
   }));
+  const birds = [
+    { x: 0.12, y: 0.28, size: 0.9, speed: 8, phase: 0 },
+    { x: 0.17, y: 0.36, size: 0.68, speed: 8, phase: 1.1 },
+    { x: 0.21, y: 0.25, size: 0.76, speed: 8, phase: 2.2 },
+    { x: 0.68, y: 0.67, size: 0.8, speed: 5, phase: 0.7 },
+    { x: 0.73, y: 0.6, size: 0.62, speed: 5, phase: 1.8 },
+  ];
   const floaters: Floater[] = [];
   const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   let nextFloater = 2;
@@ -279,6 +287,13 @@ export function startMidway(canvas: HTMLCanvasElement, options: MidwayOptions): 
         100;
       const y = HORIZON - camera.y - 50 - cloud.y * 100;
       drawCloud(ctx, x, y, cloud.size);
+    }
+    for (const bird of birds) {
+      const x =
+        ((((bird.x * span - camera.x * 0.2 + (calm ? 0 : t * bird.speed)) % span) + span) % span) -
+        100;
+      const y = HORIZON - camera.y - 65 - bird.y * 110;
+      drawBird(ctx, x, y, bird.size, calm ? 0 : Math.sin(t * 7 + bird.phase) * 2);
     }
 
     // Snap the camera to whole device pixels so the pre-drawn ground stays crisp.
