@@ -334,8 +334,8 @@ function placement(zombie: Zombie) {
 /** How big each type is drawn, and how tall, so its word sits above its head. */
 const LOOKS: Record<EnemyKind, { size: number; height: number }> = {
   shambler: { size: 1, height: 130 },
-  runner: { size: 0.7, height: 85 },
-  brute: { size: 1.5, height: 200 },
+  runner: { size: 0.7, height: 125 },
+  brute: { size: 1.5, height: 150 },
   ghost: { size: 1, height: 125 },
 };
 
@@ -515,7 +515,8 @@ function drawWord(ctx: CanvasRenderingContext2D, zombie: Zombie, locked: boolean
   ctx.font = canvasFont('body', 'bold');
   const width = ctx.measureText(zombie.word).width;
   const look = LOOKS[zombie.kind];
-  const top = y - look.height * look.size * scale - 30;
+  // Kept on the canvas, however tall the zombie stands.
+  const top = Math.max(y - look.height * look.size * scale - 30, 4);
   ctx.fillStyle = colors.surface;
   ctx.fillRect(x - width / 2 - 8, top, width + 16, 26);
   if (locked) {
