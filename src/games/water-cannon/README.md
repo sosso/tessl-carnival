@@ -20,11 +20,6 @@ Each target scores 10 points for every 60 px/s of speed, rounded up:
 
 Your final score is saved to the carnival's score board when the game ends.
 
-## Options
-
-Add `?shots=25` to the page URL to change the size of the tank, for example
-`http://localhost:5173/?shots=25#/play/water-cannon`.
-
 ## Files
 
 - `game.ts`: the game logic (`createState`, `fire`, `step`, `scoreForHit`) and the
