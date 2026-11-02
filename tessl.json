@@ -279,5 +279,17 @@
         ]
       }
     }
+  },
+  "schedules": {
+    "doc-gardening": {
+      "cron": "0 6 * * 1",
+      "description": "Weekly check for docs and agent instructions that no longer match the code",
+      "action": {
+        "skill": "file:tessl-factory#doc-gardening",
+        "environment": "tessl-carnival-loops",
+        "agent": "claude-code",
+        "model": "claude-sonnet-5-5"
+      }
+    }
   }
 }
