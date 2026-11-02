@@ -25,9 +25,10 @@ fork, not to everyone who forks this repository.
 
 - TypeScript, Vite and plain HTML canvas. No UI framework.
 - Vitest for game logic. No browser tests in the test suite.
-- `scripts/screenshot.sh` saves pictures of the midway and every game for pull
-  requests. It needs Chrome, which `.tessl/cloud-launch-setup.sh` installs on
-  the cloud machine.
+- `scripts/screenshot.mjs` saves pictures of the midway and every game for pull
+  requests, plus any a plan asks for, and reports errors the pages log. It needs
+  Chrome and Playwright, which `.tessl/cloud-launch-setup.sh` installs on the
+  cloud machine, outside the repository.
 - Scores live in the browser (local storage) behind `src/carnival/scores.ts`.
 - No native dependencies. `npm ci` is the whole setup for the carnival itself:
   only that optional Chrome install uses `sudo`.
@@ -58,7 +59,7 @@ workshop/
 docs/midway.jpg           the screenshot at the top of the README
 docs/social-preview.jpg   the 1280x640 image for link previews and GitHub's social preview
 docs/jit-board-queue.md   the design for the workshop's advanced stretch
-scripts/screenshot.sh     saves pictures of the midway and every game
+scripts/screenshot.mjs    saves pictures of the midway and every game
 tessl-factory/skills/     sample skills for maintenance loops
 .tessl-code-review.yml    the lenses Tessl Code Review runs, and where each applies
 review-lenses/            the review lenses: the four defaults and the house rules
