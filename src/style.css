@@ -100,6 +100,7 @@ body[data-view='midway'] main {
 .midway-guide,
 .midway-credit,
 .view-switch,
+.disco-switch,
 .booth-card {
   position: absolute;
   margin: 0;
@@ -130,6 +131,26 @@ body[data-view='midway'] main {
 .view-switch:hover,
 .view-switch:focus-visible {
   background: var(--color-surface);
+}
+
+.disco-switch {
+  right: 16px;
+  bottom: 64px;
+  padding: 8px 16px;
+  color: var(--color-accent);
+  font: inherit;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.disco-switch:hover,
+.disco-switch:focus-visible {
+  background: var(--color-surface);
+}
+
+.disco-switch[aria-pressed='true'] {
+  background: var(--color-accent);
+  color: var(--color-background);
 }
 
 .midway-credit {

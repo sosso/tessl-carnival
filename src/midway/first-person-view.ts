@@ -1,3 +1,5 @@
+import { beatAt, floorLight, isDisco } from './disco';
+import { drawBeams, drawMirrorBall, drawStars, drawWash } from './disco-render';
 import { palette } from './palette';
 import { label } from './render';
 import {
@@ -51,6 +53,10 @@ const PLANE = 0.66;
 const COLUMN_PX = 2;
 const MIN_QUALITY = 0.35;
 const FOG_DISTANCE = 26;
+/** How far above the horizon the mirror ball hangs, as a fraction of the view's height. */
+const BALL_RISE = 0.28;
+/** The fraction of a tile on each side that shows as grout between floor lights. */
+const GROUT = 0.05;
 
 interface Face {
   a: string;
@@ -162,6 +168,10 @@ export function startFirstPerson(
   const grass = [rgb(palette.grass), rgb(palette.grassLight)];
   const path = [rgb(palette.path), rgb(palette.pathShade)];
   const fog = rgb(palette.sky);
+  const discoGround = [rgb(palette.disco.ground), rgb(palette.disco.groundLight)];
+  const discoLights = palette.disco.lights.map(rgb);
+  const discoGrout = rgb(palette.disco.grout);
+  const discoFog = rgb(palette.disco.sky);
 
   let dpr = 1;
   /** Drops below 1 on machines too slow to keep up, casting fewer rays. */
@@ -223,7 +233,10 @@ export function startFirstPerson(
   document.addEventListener('mousemove', onMouseMove);
 
   /** Paints the ground below the horizon, a few pixels per ray, into `floor`. */
-  const drawFloor = (horizon: number, focal: number, scale: number) => {
+  const drawFloor = (horizon: number, focal: number, scale: number, lightsTime: number) => {
+    const disco = isDisco();
+    const beat = beatAt(lightsTime);
+    const mist = disco ? discoFog : fog;
     const w = columns;
     const h = Math.max(1, Math.ceil((canvas.height - horizon) / scale));
     if (!floorImage || floorImage.width !== w || floorImage.height !== h) {
@@ -248,11 +261,21 @@ export function startFirstPerson(
         const tx = Math.floor(fx);
         const ty = Math.floor(fy);
         const inside = tx >= 0 && ty >= 0 && tx < map.width && ty < map.height;
-        const shades = inside && map.ground[ty * map.width + tx] === 'path' ? path : grass;
-        const c = shades[(tx + ty) & 1];
-        data[i++] = c[0] + (fog[0] - c[0]) * haze;
-        data[i++] = c[1] + (fog[1] - c[1]) * haze;
-        data[i++] = c[2] + (fog[2] - c[2]) * haze;
+        const paved = inside && map.ground[ty * map.width + tx] === 'path';
+        let c: [number, number, number];
+        if (!disco) {
+          c = (paved ? path : grass)[(tx + ty) & 1];
+        } else if (!paved) {
+          c = discoGround[(tx + ty) & 1];
+        } else {
+          const u = fx - tx;
+          const v = fy - ty;
+          const seam = u < GROUT || u > 1 - GROUT || v < GROUT || v > 1 - GROUT;
+          c = seam ? discoGrout : discoLights[floorLight(tx, ty, beat, discoLights.length)];
+        }
+        data[i++] = c[0] + (mist[0] - c[0]) * haze;
+        data[i++] = c[1] + (mist[1] - c[1]) * haze;
+        data[i++] = c[2] + (mist[2] - c[2]) * haze;
         data[i++] = 255;
       }
     }
@@ -279,7 +302,7 @@ export function startFirstPerson(
     const haze = Math.min(1, hit.distance / FOG_DISTANCE) * 0.6;
     if (haze > 0.02) {
       ctx.globalAlpha = haze;
-      ctx.fillStyle = palette.sky;
+      ctx.fillStyle = isDisco() ? palette.disco.sky : palette.sky;
       ctx.fillRect(x, top, w, bottom - top);
       ctx.globalAlpha = 1;
     }
@@ -352,7 +375,32 @@ export function startFirstPerson(
     }
   };
 
-  const draw = (bobShift: number) => {
+  /**
+   * Where the mirror ball over the middle of the midway lands on screen. It keeps
+   * its height in the sky, like the moon, so it's easy to find from anywhere.
+   * Past the edge of the view it waits off to that side, and its beams still reach in.
+   */
+  const projectBall = (horizon: number, focal: number) => {
+    const W = canvas.width;
+    const dir = facing(angle);
+    const right = rightOf(angle);
+    const dx = map.width / 2 - player.x;
+    const dy = map.height / 2 - player.y;
+    const depth = dx * dir.x + dy * dir.y;
+    const across = dx * right.x + dy * right.y;
+    const beyond = Math.sign(across) * 2 || 2;
+    const offset = depth > 0.01 ? across / depth / PLANE : beyond;
+    return {
+      x: W / 2 + (Math.max(-2, Math.min(2, offset)) * W) / 2,
+      y: horizon - canvas.height * BALL_RISE,
+      r: Math.max(18 * dpr, Math.min(40 * dpr, (focal / Math.max(depth, 0.01)) * 0.5)),
+    };
+  };
+
+  const draw = (bobShift: number, seconds: number) => {
+    const disco = isDisco();
+    // Reduced motion freezes the lights instead of switching them off.
+    const lightsTime = calm ? 0 : seconds;
     const W = canvas.width;
     const H = canvas.height;
     const horizon = Math.round(H / 2 + bobShift * H);
@@ -362,11 +410,23 @@ export function startFirstPerson(
     ctx.imageSmoothingEnabled = false;
 
     const sky = ctx.createLinearGradient(0, 0, 0, horizon);
-    sky.addColorStop(0, palette.skyHigh);
-    sky.addColorStop(1, palette.sky);
+    sky.addColorStop(0, disco ? palette.disco.skyHigh : palette.skyHigh);
+    sky.addColorStop(1, disco ? palette.disco.sky : palette.sky);
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, W, horizon + 1);
-    drawFloor(horizon, focal, colW);
+    const ball = disco ? projectBall(horizon, focal) : undefined;
+    if (disco) {
+      // Stars turn with the player, wrapping once all the way round.
+      const turned = (((angle / (Math.PI * 2)) % 1) + 1) % 1;
+      ctx.save();
+      ctx.translate(-turned * W, 0);
+      drawStars(ctx, W, horizon, lightsTime, dpr);
+      ctx.translate(W, 0);
+      drawStars(ctx, W, horizon, lightsTime, dpr);
+      ctx.restore();
+      if (ball) drawMirrorBall(ctx, ball.x, ball.y, ball.r, lightsTime);
+    }
+    drawFloor(horizon, focal, colW, lightsTime);
     ctx.drawImage(floor, 0, horizon, W, floor.height * colW);
 
     // Walls, far to near in each column, so nearer walls cover farther ones.
@@ -433,6 +493,13 @@ export function startFirstPerson(
       ctx.restore();
     }
 
+    // The disco's lights fall over everything but the booth names.
+    if (ball) {
+      drawWash(ctx, palette.disco.sceneWash, 0, 0, W, H);
+      const reach = Math.hypot(W, H) * 1.5;
+      drawBeams(ctx, ball.x, ball.y, reach, reach * 0.08, lightsTime);
+    }
+
     // The names of booths close enough to read, over the part of the booth in view.
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     for (const booth of map.booths) {
@@ -492,7 +559,7 @@ export function startFirstPerson(
       options.onReach(reach);
     }
 
-    draw(Math.min(BOB_CAP, updateBob(bob, moved, dt, calm)));
+    draw(Math.min(BOB_CAP, updateBob(bob, moved, dt, calm)), time / 1000);
     frame = requestAnimationFrame(loop);
   };
   frame = requestAnimationFrame(loop);
