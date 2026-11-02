@@ -1,0 +1,11 @@
+schemaVersion: 1
+ignore:
+  - .tessl/plugins/**
+lenses:
+  - ref: ./review-lenses/review-correctness-and-data-integrity/SKILL.md
+  - ref: ./review-lenses/review-security-and-privacy/SKILL.md
+  - ref: ./review-lenses/review-scale-and-resilience/SKILL.md
+  - ref: ./review-lenses/review-maintainability-and-code-quality/SKILL.md
+  - ref: ./review-lenses/review-carnival-house-rules/SKILL.md
+    globs:
+      - src/games/**
