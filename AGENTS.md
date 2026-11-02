@@ -24,10 +24,13 @@ fork, not to everyone who forks this repository.
 ## Stack
 
 - TypeScript, Vite and plain HTML canvas. No UI framework.
-- Vitest for game logic. No browser tests: they need system packages the cloud
-  machine doesn't have.
+- Vitest for game logic. No browser tests in the test suite.
+- `scripts/screenshot.sh` saves pictures of the midway and every game for pull
+  requests. It needs Chrome, which `.tessl/cloud-launch-setup.sh` installs on
+  the cloud machine.
 - Scores live in the browser (local storage) behind `src/carnival/scores.ts`.
-- No native dependencies, and nothing that needs `sudo`. `npm ci` is the whole setup.
+- No native dependencies. `npm ci` is the whole setup for the carnival itself:
+  only that optional Chrome install uses `sudo`.
 
 ## Commands
 
@@ -55,6 +58,7 @@ workshop/
 docs/midway.jpg           the screenshot at the top of the README
 docs/social-preview.jpg   the 1280x640 image for link previews and GitHub's social preview
 docs/jit-board-queue.md   the design for the workshop's advanced stretch
+scripts/screenshot.sh     saves pictures of the midway and every game
 tessl-factory/skills/     sample skills for maintenance loops
 src/
   main.ts                 the router (#/play/<game-id>) and the midway's overlay

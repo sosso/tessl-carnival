@@ -17,7 +17,8 @@
           }
         ]
       },
-      "environment": "factory-devcon-1-tessl-carnival-implement"
+      "environment": "factory-devcon-1-tessl-carnival-implement",
+      "instructions": "After npm run check passes, if your change can alter what the carnival shows, capture it: run scripts/screenshot.sh .screenshots, commit only that folder and push, and note the commit with git rev-parse HEAD. Then run git rm -r .screenshots, commit and push, so the final diff has no screenshots. In the pull request body, under a ## Screenshots heading, show each picture as ![name](https://raw.githubusercontent.com/<owner>/<repo>/<that commit>/.screenshots/<name>.png). Skip all of this when nothing visible changed. If the script fails, say so in one sentence in the pull request and carry on: a screenshot problem never holds up the change."
     },
     "shepherd": {
       "tags": [
@@ -35,7 +36,8 @@
         ],
         "debounce": "90s"
       },
-      "environment": "factory-devcon-1-tessl-carnival-shepherd"
+      "environment": "factory-devcon-1-tessl-carnival-shepherd",
+      "instructions": "After npm run check passes, if your change can alter what the carnival shows, capture it: run scripts/screenshot.sh .screenshots, commit only that folder and push, and note the commit with git rev-parse HEAD. Then run git rm -r .screenshots, commit and push, so the final diff has no screenshots. Show each new picture in your reply on the pull request, as ![name](https://raw.githubusercontent.com/<owner>/<repo>/<that commit>/.screenshots/<name>.png). Skip all of this when your fix changes nothing visible. If the script fails, say so in one sentence and carry on: a screenshot problem never holds up a fix."
     },
     "follow-ticket-changes": {
       "tags": [
